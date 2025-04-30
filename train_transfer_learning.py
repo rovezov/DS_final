@@ -10,6 +10,8 @@ from torch.utils.data import Dataset, DataLoader, Subset
 from sklearn.model_selection import train_test_split
 from torchvision import transforms
 from torchvision.models import vgg16, VGG16_Weights
+from glob import glob
+
 
 def get_dataloaders(data_dir: str, batch_size: int = 16):
     # match the ImageClassification preset from the pretrained weights
@@ -66,7 +68,7 @@ def evaluate(model, loader, criterion, device):
     print(f"[Val] Epoch complete — avg loss: {epoch_loss:.4f}, accuracy: {epoch_acc:.3f}")
     return epoch_loss, epoch_acc
 
-def main():
+def train_model():
     data_dir   = "./Dataset_BUSI_with_GT"
     device     = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     train_loader, val_loader = get_dataloaders(data_dir, batch_size=16)
@@ -161,6 +163,59 @@ def get_dataloaders(data_dir: str, batch_size: int = 16, val_split: float = 0.2)
         DataLoader(train_ds, batch_size=batch_size, shuffle=True,  num_workers=4),
         DataLoader(val_ds,   batch_size=batch_size, shuffle=False, num_workers=4),
     )
+
+
+def main():
+    # Load the model
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = vgg16(weights=VGG16_Weights.IMAGENET1K_V1)
+
+    # Modify the classifier to match your trained model
+    model.classifier[6] = torch.nn.Linear(4096, 3)  # 3 classes: benign, malignant, normal
+    model.load_state_dict(torch.load("vgg16_mammo_best.pth", map_location=device))
+    model.to(device)
+    model.eval()
+    preprocess = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),])
+    def classify_image(image_path):
+        # Load and preprocess the image
+        img = Image.open(image_path).convert("RGB")
+        img = preprocess(img).unsqueeze(0).to(device)  # Add batch dimension
+
+        # Perform inference
+        with torch.no_grad():
+            output = model(img)
+            probabilities = torch.nn.functional.softmax(output[0], dim=0)
+
+        # Map class indices to labels
+        classes = ["benign", "malignant", "normal"]
+        predicted_class = classes[probabilities.argmax().item()]
+        confidence = probabilities.max().item()
+
+        return predicted_class, confidence
+    def classify_images(folder_path):
+        # Get all image files in the folder (supports .jpg, .jpeg, .png)
+        image_paths = glob.glob(os.path.join(folder_path, "*.[jp][pn]g"))
+        results = []
+        for image_path in image_paths:
+            predicted_class, confidence = classify_image(image_path)
+            results.append((image_path, predicted_class, confidence))
+            print(f"Image: {image_path}, Predicted class: {predicted_class}, Confidence: {confidence:.2f}")
+        return results
+
+    # Example usage
+    folder_path = "./Dataset_BUSI_with_GT/malignant"  # Change this to your folder path
+    print(f"Classifying images in folder: {folder_path}")
+    classify_images(folder_path)
+    # for path, cls, conf in results:
+    #     print(f"Image: {path}, Predicted class: {cls}, Confidence: {conf:.2f}")
+    
+
+
+
 
 if __name__ == "__main__":
     main()
