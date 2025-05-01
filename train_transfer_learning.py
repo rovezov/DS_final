@@ -47,25 +47,25 @@ from sklearn.model_selection import KFold
 
 
 
-def get_dataloaders(data_dir: str, batch_size: int = 16):
-    # match the ImageClassification preset from the pretrained weights
-    train_transforms = transforms.Compose([
-    transforms.Resize(128),
-    transforms.CenterCrop(128),
-    transforms.RandomHorizontalFlip(),
-    transforms.RandomRotation(10),
-    transforms.ColorJitter(brightness=0.2, contrast=0.2),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-    ])
-    train_ds = datasets.ImageFolder(os.path.join(data_dir, "train"),
-                                    transform=transforms.Compose(train_transforms + [transforms.RandomHorizontalFlip()]))
-    val_ds   = datasets.ImageFolder(os.path.join(data_dir, "val"),
-                                    transform=transforms.Compose(train_transforms))
-    return (
-        torch.utils.data.DataLoader(train_ds, batch_size=batch_size, shuffle=True,  num_workers=4),
-        torch.utils.data.DataLoader(val_ds,   batch_size=batch_size, shuffle=False, num_workers=4),
-    )
+# def get_dataloaders(data_dir: str, batch_size: int = 16):
+#     # match the ImageClassification preset from the pretrained weights
+#     train_transforms = transforms.Compose([
+#     transforms.Resize(128),
+#     transforms.CenterCrop(128),
+#     transforms.RandomHorizontalFlip(),
+#     transforms.RandomRotation(10),
+#     transforms.ColorJitter(brightness=0.2, contrast=0.2),
+#     transforms.ToTensor(),
+#     transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+#     ])
+#     train_ds = datasets.ImageFolder(os.path.join(data_dir, "train"),
+#                                     transform=transforms.Compose(train_transforms + [transforms.RandomHorizontalFlip()]))
+#     val_ds   = datasets.ImageFolder(os.path.join(data_dir, "val"),
+#                                     transform=transforms.Compose(train_transforms))
+#     return (
+#         torch.utils.data.DataLoader(train_ds, batch_size=batch_size, shuffle=True,  num_workers=4),
+#         torch.utils.data.DataLoader(val_ds,   batch_size=batch_size, shuffle=False, num_workers=4),
+#     )
 
 def train_one_epoch(model, loader, criterion, optimizer, device):
      model.train()
@@ -102,52 +102,52 @@ def evaluate(model, loader, criterion, device):
     print(f"[Val] Epoch complete — avg loss: {epoch_loss:.4f}, accuracy: {epoch_acc:.3f}")
     return epoch_loss, epoch_acc
 
-def train_model():
-    data_dir   = "./balanced_mammogram_dataset"
-    device     = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    train_loader, val_loader = get_dataloaders(data_dir, batch_size=64)
+# def train_model():
+#     data_dir   = "./balanced_mammogram_dataset"
+#     device     = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#     train_loader, val_loader = get_dataloaders(data_dir, batch_size=64)
 
-    # load pretrained VGG16
-    model = vgg16(weights=VGG16_Weights.IMAGENET1K_V1)
-    # freeze all convolutional layers
-    for p in model.features.parameters():
-        p.requires_grad = False
-    # replace the last classifier layer for 2‑way output
-    model.classifier[6] = nn.Linear(4096, 2)
-    model.to(device)
+#     # load pretrained VGG16
+#     model = vgg16(weights=VGG16_Weights.IMAGENET1K_V1)
+#     # freeze all convolutional layers
+#     for p in model.features.parameters():
+#         p.requires_grad = False
+#     # replace the last classifier layer for 2‑way output
+#     model.classifier[6] = nn.Linear(4096, 2)
+#     model.to(device)
 
-    cancer_samples = len([s for s in train_loader.dataset if s[1] == 1])
-    no_cancer_samples = len([s for s in train_loader.dataset if s[1] == 0])
-    class_weights = torch.tensor([1.0 / no_cancer_samples, 1.0 / cancer_samples], dtype=torch.float32).to(device)
-    criterion = nn.CrossEntropyLoss(weight=class_weights)
-    optimizer = optim.Adam(model.classifier.parameters(), lr=1e-5)
+#     cancer_samples = len([s for s in train_loader.dataset if s[1] == 1])
+#     no_cancer_samples = len([s for s in train_loader.dataset if s[1] == 0])
+#     class_weights = torch.tensor([1.0 / no_cancer_samples, 1.0 / cancer_samples], dtype=torch.float32).to(device)
+#     criterion = nn.CrossEntropyLoss(weight=class_weights)
+#     optimizer = optim.Adam(model.classifier.parameters(), lr=1e-5)
 
-    best_acc = 0.0
-    for epoch in range(1, 21):
-        train_loss = train_one_epoch(model, train_loader, criterion, optimizer, device)
-        val_loss, val_acc = evaluate(model, val_loader, criterion, device)
-        model.eval()
-        val_loss, y_true, y_pred = 0.0, [], []
-        with torch.inference_mode():
-            for imgs, labels in tqdm(val_loader, desc=f"Epoch {epoch} - Validating", unit="batch"):
-                imgs, labels = imgs.to(device), labels.to(device)
-                outputs = model(imgs)
-                val_loss += criterion(outputs, labels).item() * imgs.size(0)
-                probs = torch.softmax(outputs, dim=1)[:, 1]  # Get probabilities for the positive class
-                y_true.extend(labels.cpu().numpy())
-                y_pred.extend(probs.cpu().numpy())
+#     best_acc = 0.0
+#     for epoch in range(1, 21):
+#         train_loss = train_one_epoch(model, train_loader, criterion, optimizer, device)
+#         val_loss, val_acc = evaluate(model, val_loader, criterion, device)
+#         model.eval()
+#         val_loss, y_true, y_pred = 0.0, [], []
+#         with torch.inference_mode():
+#             for imgs, labels in tqdm(val_loader, desc=f"Epoch {epoch} - Validating", unit="batch"):
+#                 imgs, labels = imgs.to(device), labels.to(device)
+#                 outputs = model(imgs)
+#                 val_loss += criterion(outputs, labels).item() * imgs.size(0)
+#                 probs = torch.softmax(outputs, dim=1)[:, 1]  # Get probabilities for the positive class
+#                 y_true.extend(labels.cpu().numpy())
+#                 y_pred.extend(probs.cpu().numpy())
 
-        val_loss /= len(val_loader.dataset)
+#         val_loss /= len(val_loader.dataset)
 
-        # Print classification report for additional metrics
-        y_pred_classes = [1 if p > 0.5 else 0 for p in y_pred]
-        print(classification_report(y_true, y_pred_classes, target_names=["no_cancer", "cancer"]))
-        print(f"Epoch {epoch:2d}: train_loss={train_loss:.4f}  "
-            f"val_loss={val_loss:.4f}  val_acc={val_acc:.3f}")
-        # save best
-        if val_acc > best_acc:
-            best_acc = val_acc
-            torch.save(model.state_dict(), "vgg16_mammo_best.pth")
+#         # Print classification report for additional metrics
+#         y_pred_classes = [1 if p > 0.5 else 0 for p in y_pred]
+#         print(classification_report(y_true, y_pred_classes, target_names=["no_cancer", "cancer"]))
+#         print(f"Epoch {epoch:2d}: train_loss={train_loss:.4f}  "
+#             f"val_loss={val_loss:.4f}  val_acc={val_acc:.3f}")
+#         # save best
+#         if val_acc > best_acc:
+#             best_acc = val_acc
+#             torch.save(model.state_dict(), "vgg16_mammo_best.pth")
 
 
 class BUSIDataset(Dataset):
@@ -209,67 +209,67 @@ def get_dataloaders(data_dir: str, batch_size: int = 16, val_split: float = 0.2)
     )
 
 
-def evaluateModel():
-    # Load the model
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if not torch.cuda.is_available():
-        print("CUDA is not available. Using CPU.")
-    else:
-        print("Using GPU for inference.")
+# def evaluateModel():
+#     # Load the model
+#     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#     if not torch.cuda.is_available():
+#         print("CUDA is not available. Using CPU.")
+#     else:
+#         print("Using GPU for inference.")
     
-    # Load the trained VGG16 model
-    model = vgg16(weights=VGG16_Weights.IMAGENET1K_V1)
-    model.classifier[6] = torch.nn.Linear(4096, 2)  # Binary classification: no_cancer, cancer
-    model.load_state_dict(torch.load("vgg16_binary_best.pth", map_location=device))  # Load the trained weights
-    model.to(device)
-    model.eval()
-    normalize = transforms.Normalize(mean=(0.485, 0.456, 0.406),
-                                    std=(0.229, 0.224, 0.225))
-    preprocess = transforms.Compose([
-        transforms.Resize(128),
-        transforms.CenterCrop(128),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomRotation(10),
-        transforms.ColorJitter(brightness=0.2, contrast=0.2),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-        ])
+#     # Load the trained VGG16 model
+#     model = vgg16(weights=VGG16_Weights.IMAGENET1K_V1)
+#     model.classifier[6] = torch.nn.Linear(4096, 2)  # Binary classification: no_cancer, cancer
+#     model.load_state_dict(torch.load("vgg16_binary_best.pth", map_location=device))  # Load the trained weights
+#     model.to(device)
+#     model.eval()
+#     normalize = transforms.Normalize(mean=(0.485, 0.456, 0.406),
+#                                     std=(0.229, 0.224, 0.225))
+#     preprocess = transforms.Compose([
+#         transforms.Resize(128),
+#         transforms.CenterCrop(128),
+#         transforms.RandomHorizontalFlip(),
+#         transforms.RandomRotation(10),
+#         transforms.ColorJitter(brightness=0.2, contrast=0.2),
+#         transforms.ToTensor(),
+#         transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+#         ])
 
-    # Function to classify a single image
-    def classify_image(image_path):
-        # Load and preprocess the image
-        img = Image.open(image_path).convert("RGB")
-        img = preprocess(img).unsqueeze(0).to(device)
+#     # Function to classify a single image
+#     def classify_image(image_path):
+#         # Load and preprocess the image
+#         img = Image.open(image_path).convert("RGB")
+#         img = preprocess(img).unsqueeze(0).to(device)
 
-        with torch.no_grad():
-            output = model(img)
-            probabilities = torch.nn.functional.softmax(output[0], dim=0)
+#         with torch.no_grad():
+#             output = model(img)
+#             probabilities = torch.nn.functional.softmax(output[0], dim=0)
 
-        classes = ["no_cancer", "cancer"]
-        predicted_class = classes[probabilities.argmax().item()]
-        confidence = probabilities.max().item()
+#         classes = ["no_cancer", "cancer"]
+#         predicted_class = classes[probabilities.argmax().item()]
+#         confidence = probabilities.max().item()
 
-        return predicted_class, confidence
+#         return predicted_class, confidence
 
-    # Function to classify all images in a folder
-    def classify_images(folder_path):
-        # Get all image files in the folder (supports .jpg, .jpeg, .png)
-        image_paths = glob.glob(os.path.join(folder_path, "*.[jp][pn]g"))
-        results = []
-        correct = 0
-        for image_path in image_paths:
-            predicted_class, confidence = classify_image(image_path)
-            if predicted_class == "no_cancer":
-                correct += 1
-            results.append((image_path, predicted_class, confidence))
-            print(f"Image: {image_path}, Predicted class: {predicted_class}, Confidence: {confidence:.2f}")
-        print(f"Accuracy: {correct / len(image_paths) * 100:.2f}%")
-        return results
+#     # Function to classify all images in a folder
+#     def classify_images(folder_path):
+#         # Get all image files in the folder (supports .jpg, .jpeg, .png)
+#         image_paths = glob.glob(os.path.join(folder_path, "*.[jp][pn]g"))
+#         results = []
+#         correct = 0
+#         for image_path in image_paths:
+#             predicted_class, confidence = classify_image(image_path)
+#             if predicted_class == "no_cancer":
+#                 correct += 1
+#             results.append((image_path, predicted_class, confidence))
+#             print(f"Image: {image_path}, Predicted class: {predicted_class}, Confidence: {confidence:.2f}")
+#         print(f"Accuracy: {correct / len(image_paths) * 100:.2f}%")
+#         return results
 
-    # Example usage
-    folder_path = "./test_mammogram_dataset/no_cancer"  # Change this to your folder path
-    print(f"Classifying images in folder: {folder_path}")
-    classify_images(folder_path)
+#     # Example usage
+#     folder_path = "./test_mammogram_dataset/no_cancer"  # Change this to your folder path
+#     print(f"Classifying images in folder: {folder_path}")
+#     classify_images(folder_path)
 
     
 def download_and_save_images(dataset_name, split, output_dir):
@@ -356,54 +356,54 @@ def preprocess_and_save_balanced_dataset(root_dir, train_val_dir, test_split=0.2
     print(f"Balanced dataset saved to {train_val_dir}.")
 
 
-def preprocess_and_save_balanced_dataset_oversample(root_dir, train_val_dir, test_dir, test_split=0.2):
-    classes = {"no_cancer": 0, "cancer": 1}
-    samples = []
+# def preprocess_and_save_balanced_dataset_oversample(root_dir, train_val_dir, test_dir, test_split=0.2):
+#     classes = {"no_cancer": 0, "cancer": 1}
+#     samples = []
 
-    # Collect all samples
-    for cls, label in classes.items():
-        class_path = os.path.join(root_dir, cls)
-        if not os.path.isdir(class_path):
-            raise RuntimeError(f"Directory not found: {class_path}")
-        for ext in ("*.png", "*.jpg", "*.jpeg"):
-            for fn in glob.glob(os.path.join(class_path, ext)):
-                samples.append((fn, label))
+#     # Collect all samples
+#     for cls, label in classes.items():
+#         class_path = os.path.join(root_dir, cls)
+#         if not os.path.isdir(class_path):
+#             raise RuntimeError(f"Directory not found: {class_path}")
+#         for ext in ("*.png", "*.jpg", "*.jpeg"):
+#             for fn in glob.glob(os.path.join(class_path, ext)):
+#                 samples.append((fn, label))
 
-    # Split into train/validate and test sets
-    train_val_samples, test_samples = train_test_split(
-        samples, test_size=test_split, stratify=[s[1] for s in samples], random_state=42
-    )
+#     # Split into train/validate and test sets
+#     train_val_samples, test_samples = train_test_split(
+#         samples, test_size=test_split, stratify=[s[1] for s in samples], random_state=42
+#     )
 
-    # Balance train/validate set by oversampling the minority class
-    cancer_samples = [s for s in train_val_samples if s[1] == 1]
-    no_cancer_samples = [s for s in train_val_samples if s[1] == 0]
-    if len(cancer_samples) < len(no_cancer_samples):
-        cancer_samples = random.choices(cancer_samples, k=len(no_cancer_samples))
-    balanced_samples = cancer_samples + no_cancer_samples
-    random.shuffle(balanced_samples)
+#     # Balance train/validate set by oversampling the minority class
+#     cancer_samples = [s for s in train_val_samples if s[1] == 1]
+#     no_cancer_samples = [s for s in train_val_samples if s[1] == 0]
+#     if len(cancer_samples) < len(no_cancer_samples):
+#         cancer_samples = random.choices(cancer_samples, k=len(no_cancer_samples))
+#     balanced_samples = cancer_samples + no_cancer_samples
+#     random.shuffle(balanced_samples)
 
-    # Save the train/validate set
-    for cls, label in classes.items():
-        class_output_dir = os.path.join(train_val_dir, cls)
-        os.makedirs(class_output_dir, exist_ok=True)
+#     # Save the train/validate set
+#     for cls, label in classes.items():
+#         class_output_dir = os.path.join(train_val_dir, cls)
+#         os.makedirs(class_output_dir, exist_ok=True)
 
-    for idx, (img_path, label) in enumerate(balanced_samples):
-        class_name = "cancer" if label == 1 else "no_cancer"
-        output_path = os.path.join(train_val_dir, class_name, f"{idx}.jpg")
-        shutil.copy(img_path, output_path)
+#     for idx, (img_path, label) in enumerate(balanced_samples):
+#         class_name = "cancer" if label == 1 else "no_cancer"
+#         output_path = os.path.join(train_val_dir, class_name, f"{idx}.jpg")
+#         shutil.copy(img_path, output_path)
 
-    # Save the test set
-    for cls, label in classes.items():
-        class_output_dir = os.path.join(test_dir, cls)
-        os.makedirs(class_output_dir, exist_ok=True)
+#     # Save the test set
+#     for cls, label in classes.items():
+#         class_output_dir = os.path.join(test_dir, cls)
+#         os.makedirs(class_output_dir, exist_ok=True)
 
-    for idx, (img_path, label) in enumerate(test_samples):
-        class_name = "cancer" if label == 1 else "no_cancer"
-        output_path = os.path.join(test_dir, class_name, f"{idx}.jpg")
-        shutil.copy(img_path, output_path)
+#     for idx, (img_path, label) in enumerate(test_samples):
+#         class_name = "cancer" if label == 1 else "no_cancer"
+#         output_path = os.path.join(test_dir, class_name, f"{idx}.jpg")
+#         shutil.copy(img_path, output_path)
 
-    print(f"Balanced train/validate dataset saved to {train_val_dir}.")
-    print(f"Test dataset saved to {test_dir}.")
+#     print(f"Balanced train/validate dataset saved to {train_val_dir}.")
+#     print(f"Test dataset saved to {test_dir}.")
 
 
 def downloadAndPrep_mammogram_data():
@@ -412,62 +412,61 @@ def downloadAndPrep_mammogram_data():
     split = "train"
     output_dir = "./mammogram_dataset"
     train_val_dir = "./balanced_mammogram_dataset"
-    test_dir = "./test_mammogram_dataset"
 
     # Download and save the raw dataset
     download_and_save_images(dataset_name, split, output_dir)
 
     # Preprocess and save the balanced dataset (choose undersampling or oversampling)
-    preprocess_and_save_balanced_dataset_oversample(output_dir, train_val_dir, test_dir)
+    # preprocess_and_save_balanced_dataset_oversample(output_dir, train_val_dir, test_dir)
     # Or use undersampling:
-    # preprocess_and_save_balanced_dataset(output_dir, train_val_dir, test_dir)
+    preprocess_and_save_balanced_dataset(output_dir, train_val_dir)
 
 
 
-def preprocess_dataset(dataset_name, image_size=224, val_split=0.2, test_split=0.1):
-    # Load the entire dataset (train split)
-    dataset = load_dataset(dataset_name, split="train")
-    processor = ViTImageProcessor.from_pretrained("google/vit-base-patch16-224-in21k")
+# def preprocess_dataset(dataset_name, image_size=224, val_split=0.2, test_split=0.1):
+#     # Load the entire dataset (train split)
+#     dataset = load_dataset(dataset_name, split="train")
+#     processor = ViTImageProcessor.from_pretrained("google/vit-base-patch16-224-in21k")
 
-    # Define preprocessing transforms
-    transforms = Compose([
-        Resize(image_size),
-        CenterCrop(image_size),
-        ToTensor(),
-        Normalize(mean=processor.image_mean, std=processor.image_std),
-        Grayscale(num_output_channels=3),  # Convert grayscale to RGB
-    ])
+#     # Define preprocessing transforms
+#     transforms = Compose([
+#         Resize(image_size),
+#         CenterCrop(image_size),
+#         ToTensor(),
+#         Normalize(mean=processor.image_mean, std=processor.image_std),
+#         Grayscale(num_output_channels=3),  # Convert grayscale to RGB
+#     ])
 
-    def transform_examples(example):
-        img = example["image"]
-        if isinstance(img, Image.Image):  # Ensure it's a PIL Image
-            img = img.convert("RGB")  # Convert to RGB if needed
-        example["pixel_values"] = transforms(img)
-        return example
+#     def transform_examples(example):
+#         img = example["image"]
+#         if isinstance(img, Image.Image):  # Ensure it's a PIL Image
+#             img = img.convert("RGB")  # Convert to RGB if needed
+#         example["pixel_values"] = transforms(img)
+#         return example
 
-    # Apply preprocessing
-    dataset = dataset.map(transform_examples, batched=False)
-    dataset = dataset.remove_columns(["image"])
+#     # Apply preprocessing
+#     dataset = dataset.map(transform_examples, batched=False)
+#     dataset = dataset.remove_columns(["image"])
 
-    # Split the dataset into train, validation, and test sets
-    train_val_indices, test_indices = train_test_split(
-        list(range(len(dataset))),
-        test_size=test_split,
-        stratify=dataset["label"],  # Ensure stratified split
-        random_state=42,
-    )
-    train_indices, val_indices = train_test_split(
-        train_val_indices,
-        test_size=val_split / (1 - test_split),  # Adjust validation split relative to remaining data
-        stratify=[dataset[i]["label"] for i in train_val_indices],
-        random_state=42,
-    )
+#     # Split the dataset into train, validation, and test sets
+#     train_val_indices, test_indices = train_test_split(
+#         list(range(len(dataset))),
+#         test_size=test_split,
+#         stratify=dataset["label"],  # Ensure stratified split
+#         random_state=42,
+#     )
+#     train_indices, val_indices = train_test_split(
+#         train_val_indices,
+#         test_size=val_split / (1 - test_split),  # Adjust validation split relative to remaining data
+#         stratify=[dataset[i]["label"] for i in train_val_indices],
+#         random_state=42,
+#     )
 
-    train_dataset = dataset.select(train_indices)
-    val_dataset = dataset.select(val_indices)
-    test_dataset = dataset.select(test_indices)
+#     train_dataset = dataset.select(train_indices)
+#     val_dataset = dataset.select(val_indices)
+#     test_dataset = dataset.select(test_indices)
 
-    return train_dataset, val_dataset, test_dataset
+#     return train_dataset, val_dataset, test_dataset
 
 
 def preprocess_local_dataset(data_dir, image_size=224, val_split=0.2, test_split=0.1):
@@ -647,66 +646,69 @@ def evaluate_model_google():
     print(f"Classifying images in folder: {test_folder_path}")
     results = classify_images(test_folder_path)
 
-def train_model_google_with_cv(k_folds=5):
-    # Path to the local dataset
-    data_dir = "./balanced_mammogram_dataset"
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# def train_model_google_with_cv(k_folds=5):
+#     # Path to the local dataset
+#     data_dir = "./balanced_mammogram_dataset"
+#     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Preprocess the dataset
-    full_dataset = BUSIDataset(root_dir=data_dir, transform=Compose([
-        Resize(224),
-        CenterCrop(224),
-        ToTensor(),
-        Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-    ]))
+#     # Preprocess the dataset
+#     full_dataset = BUSIDataset(root_dir=data_dir, transform=Compose([
+#         Resize(224),
+#         CenterCrop(224),
+#         ToTensor(),
+#         Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+#     ]))
 
-    # Initialize K-Fold Cross-Validation
-    kfold = KFold(n_splits=k_folds, shuffle=True, random_state=42)
+#     # Initialize K-Fold Cross-Validation
+#     kfold = KFold(n_splits=k_folds, shuffle=True, random_state=42)
 
-    # Metrics to track performance across folds
-    fold_metrics = []
+#     # Metrics to track performance across folds
+#     fold_metrics = []
 
-    for fold, (train_idx, val_idx) in enumerate(kfold.split(full_dataset)):
-        print(f"Training fold {fold + 1}/{k_folds}...")
+#     for fold, (train_idx, val_idx) in enumerate(kfold.split(full_dataset)):
+#         print(f"Training fold {fold + 1}/{k_folds}...")
 
-        # Split the dataset into training and validation sets
-        train_subset = Subset(full_dataset, train_idx)
-        val_subset = Subset(full_dataset, val_idx)
+#         # Split the dataset into training and validation sets
+#         train_subset = Subset(full_dataset, train_idx)
+#         val_subset = Subset(full_dataset, val_idx)
 
-        train_loader = DataLoader(train_subset, batch_size=64, shuffle=True, num_workers=4)
-        val_loader = DataLoader(val_subset, batch_size=64, shuffle=False, num_workers=4)
+#         train_loader = DataLoader(train_subset, batch_size=64, shuffle=True, num_workers=4)
+#         val_loader = DataLoader(val_subset, batch_size=64, shuffle=False, num_workers=4)
 
-        # Load the model
-        model = ViTForImageClassification.from_pretrained(
-            "google/vit-base-patch16-224-in21k",
-            num_labels=2,  # Binary classification: no_cancer, cancer
-            id2label={0: "no_cancer", 1: "cancer"},
-            label2id={"no_cancer": 0, "cancer": 1},
-        )
-        model.to(device)
+#         # Load the model
+#         model = ViTForImageClassification.from_pretrained(
+#             "google/vit-base-patch16-224-in21k",
+#             num_labels=2,  # Binary classification: no_cancer, cancer
+#             id2label={0: "no_cancer", 1: "cancer"},
+#             label2id={"no_cancer": 0, "cancer": 1},
+#         )
+#         model.to(device)
 
-        # Define optimizer and loss function
-        optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
-        criterion = torch.nn.CrossEntropyLoss()
+#         # Define optimizer and loss function
+#         optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
+#         criterion = torch.nn.CrossEntropyLoss()
 
-        # Train the model for a few epochs
-        for epoch in range(1, 6):  # Adjust the number of epochs as needed
-            print(f"Fold {fold + 1}, Epoch {epoch}")
-            train_one_epoch(model, train_loader, criterion, optimizer, device)
+#         # Train the model for a few epochs
+#         for epoch in range(1, 6):  # Adjust the number of epochs as needed
+#             print(f"Fold {fold + 1}, Epoch {epoch}")
+#             train_one_epoch(model, train_loader, criterion, optimizer, device)
 
-        # Evaluate the model on the validation set
-        val_loss, val_acc = evaluate(model, val_loader, criterion, device)
-        print(f"Fold {fold + 1} — Validation Loss: {val_loss:.4f}, Validation Accuracy: {val_acc:.4f}")
+#         # Evaluate the model on the validation set
+#         val_loss, val_acc = evaluate(model, val_loader, criterion, device)
+#         print(f"Fold {fold + 1} — Validation Loss: {val_loss:.4f}, Validation Accuracy: {val_acc:.4f}")
 
-        # Save metrics for this fold
-        fold_metrics.append({"fold": fold + 1, "val_loss": val_loss, "val_acc": val_acc})
+#         # Save metrics for this fold
+#         fold_metrics.append({"fold": fold + 1, "val_loss": val_loss, "val_acc": val_acc})
 
-    # Print overall metrics
-    avg_val_loss = sum(f["val_loss"] for f in fold_metrics) / k_folds
-    avg_val_acc = sum(f["val_acc"] for f in fold_metrics) / k_folds
-    print(f"Cross-Validation Complete — Avg Validation Loss: {avg_val_loss:.4f}, Avg Validation Accuracy: {avg_val_acc:.4f}")
+#     # Print overall metrics
+#     avg_val_loss = sum(f["val_loss"] for f in fold_metrics) / k_folds
+#     avg_val_acc = sum(f["val_acc"] for f in fold_metrics) / k_folds
+#     print(f"Cross-Validation Complete — Avg Validation Loss: {avg_val_loss:.4f}, Avg Validation Accuracy: {avg_val_acc:.4f}")
 
 if __name__ == "__main__":
-    # train_model_google()
-    # train_model_google_with_cv()
+    # Run once to download and preprocess the dataset
+    downloadAndPrep_mammogram_data()
+    # Train the model
+    train_model_google()
+    # Evaluate the model with a single image folder
     evaluate_model_google()
